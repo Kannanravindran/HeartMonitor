@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">HeartMonitor</string>
+    <string-array name="patientid">
+        <item>Patient: 210</item>
+        <item>Patient: 329</item>
+        <item>Patient: 443</item>
+    </string-array>
+</resources>
