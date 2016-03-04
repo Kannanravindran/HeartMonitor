@@ -2,6 +2,7 @@ package com.kannan.heartmonitor;
 
 import android.content.Context;
 import android.content.Intent;
+import android.database.sqlite.SQLiteException;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -13,13 +14,17 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.Viewport;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
+import com.kannan.Bean.AccelEntryBean;
 import com.kannan.Bean.PatientBean;
+import com.kannan.database.sqlite.PatientDBHelper;
 
+import java.util.List;
 import java.util.Random;
 
 public class SecondActivity extends AppCompatActivity implements SensorEventListener{
@@ -44,6 +49,9 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
     private SensorManager sensorManager;
     private Sensor sensorAccelerometer;
     private boolean isReadyForAnotherRead;
+
+    //Database Helper
+    PatientDBHelper patientDB;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -101,12 +109,13 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
             ex.printStackTrace();
         }
 
-
+        /* SETUP SENSORS*/
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         sensorAccelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         sensorManager.registerListener(this, sensorAccelerometer , SensorManager.SENSOR_DELAY_NORMAL);
 
 
+        /* CREATE BUTTON LISTENERS*/
         //run
         run.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -120,8 +129,43 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
             @Override
             public void onClick(View v) {
                 running=false;
+                isReadyForAnotherRead = false;
             }
         });
+
+
+        /* GET DB INFORMATION FROM PATIENT RECORDS */
+        patientDB = new PatientDBHelper(this,
+                patientInfo.getName(),
+                patientInfo.getId(),
+                patientInfo.getAge(),
+                patientInfo.getSex());
+
+        List<AccelEntryBean> history = null;
+        try {
+            history = patientDB.getAllEntries();
+
+        } catch (SQLiteException ex) { // history for patient not available
+            ex.printStackTrace();
+
+            try {
+                patientDB.createTableForPatient();
+            } catch (Exception e) {
+                e.printStackTrace();
+                Context context = getApplicationContext();
+                CharSequence text = "There was a problem loading patient records";
+                int duration = Toast.LENGTH_SHORT;
+            }
+
+        }
+
+
+        if(history != null) {
+            for(AccelEntryBean entry : history) {
+                int nY = (int) ((entry.getY() * 10.0) + 50);
+                addEntry(nY);
+            }
+        }
     }
 
         @Override
@@ -138,7 +182,9 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
 
                             @Override
                             public void run() {
-                                isReadyForAnotherRead = true;
+                                if(running) {
+                                    isReadyForAnotherRead = true;
+                                }
                             }
                         });
 
@@ -161,10 +207,7 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
                 //series.appendData(new DataPoint(lastX++, RANDOM.nextDouble() * 10d), true, 10);
                 //series.appendData(new DataPoint(lastX++, RANDOM.nextDouble() * 100d), true, 30);
                 series.appendData(new DataPoint(lastX++,y ), true,30);
-
         }
-
-
     }
 
     /* IMPLEMENT SENSOR EVENT LISTENER  */
@@ -172,16 +215,22 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
     public void onSensorChanged(SensorEvent sensorEvent) {
         // if sensor is the accelerometer:
         Sensor mySensor = sensorEvent.sensor;
+        float x = 0;
         float y = 0;
+        float z = 0;
         if (mySensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-            float x = sensorEvent.values[0];
+            x = sensorEvent.values[0];
             y = sensorEvent.values[1];
-            float z = sensorEvent.values[2];
+            z = sensorEvent.values[2];
         }
+
+        // a second has happsed, so read & record accelerometer data
         if(isReadyForAnotherRead) {
             int nY = (int) ((y * 10.0) + 50);
             addEntry(nY);
             isReadyForAnotherRead = false;
+            AccelEntryBean newAccelRead = AccelEntryBean.getNewAccelEntry(x, y, z);
+            patientDB.addEntry(newAccelRead);
         }
     }
 

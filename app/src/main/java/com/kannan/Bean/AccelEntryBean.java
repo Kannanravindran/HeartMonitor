@@ -12,6 +12,12 @@ public class AccelEntryBean {
     private float z;
     private Timestamp timestamp;
 
+    public AccelEntryBean( ) {
+        this.x = 0;
+        this.y = 0;
+        this.z = 0;
+    }
+
     public AccelEntryBean(float x, float y, float z) {
         this.x = x;
         this.y = y;
@@ -25,14 +31,22 @@ public class AccelEntryBean {
         this.timestamp = timestamp;
     }
 
-    public AccelEntryBean getNewAccelEntry(float x, float y, float z) {
+    public static AccelEntryBean getNewAccelEntry(float x, float y, float z) {
         AccelEntryBean newEntry = new AccelEntryBean(x, y, z);
         Date date = new Date();
-        this.timestamp = new Timestamp(date.getTime());
+        newEntry.timestamp = new Timestamp(date.getTime());
         return newEntry;
     }
 
     /** GETTERS AND SETTERS **/
+
+    public void setTimestamp(Timestamp timestamp) {
+        this.timestamp = timestamp;
+    }
+
+    public Timestamp getTimestamp() {
+        return timestamp;
+    }
 
     public float getZ() {
         return z;
