@@ -148,10 +148,13 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
         } catch (SQLiteException ex) { // history for patient not available
             ex.printStackTrace();
 
+            // history isn't available, try creating a table?
             try {
                 patientDB.createTableForPatient();
             } catch (Exception e) {
                 e.printStackTrace();
+
+                // no history, but table is there or can't create table... very bad if we get here
                 Context context = getApplicationContext();
                 CharSequence text = "There was a problem loading patient records";
                 int duration = Toast.LENGTH_SHORT;
@@ -159,10 +162,10 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
 
         }
 
-
+        // add all the entries for previous records
         if(history != null) {
             for(AccelEntryBean entry : history) {
-                int nY = (int) ((entry.getY() * 10.0) + 50);
+                int nY = (int) ((entry.getY() * 10.0) + 50); // scale the y-value so it's more visible on graph
                 addEntry(nY);
             }
         }
@@ -183,7 +186,7 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
                             @Override
                             public void run() {
                                 if(running) {
-                                    isReadyForAnotherRead = true;
+                                    isReadyForAnotherRead = true; // flag for the sensorChanged to record new value
                                 }
                             }
                         });
@@ -226,10 +229,10 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
 
         // a second has happsed, so read & record accelerometer data
         if(isReadyForAnotherRead) {
-            int nY = (int) ((y * 10.0) + 50);
-            addEntry(nY);
-            isReadyForAnotherRead = false;
-            AccelEntryBean newAccelRead = AccelEntryBean.getNewAccelEntry(x, y, z);
+            int nY = (int) ((y * 10.0) + 50); // scale the y-value so it's more visible on graph
+            addEntry(nY); // add to graph
+            isReadyForAnotherRead = false; // wait for timer to set back to true so that we read in one second
+            AccelEntryBean newAccelRead = AccelEntryBean.getNewAccelEntry(x, y, z); // add new reading to DB
             patientDB.addEntry(newAccelRead);
         }
     }
