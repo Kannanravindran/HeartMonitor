@@ -83,8 +83,6 @@ public class SecondActivity extends AppCompatActivity {
                                     if(y==19){
                                         y=0;
                                     }
-
-
                                 }
                             });
 
@@ -94,7 +92,6 @@ public class SecondActivity extends AppCompatActivity {
                         } catch (InterruptedException e) {
                             // manage error ...
                         }
-
                     }
                 }
             }).start();
