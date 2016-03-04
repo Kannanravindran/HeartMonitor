@@ -20,7 +20,7 @@ public class MainActivity extends AppCompatActivity {
         Nextbutton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent i = new Intent(MainActivity.this, SecondActivity.class);
+                Intent i = new Intent(MainActivity.this, PatientInfoActivity.class);
                 startActivity(i);
             }
         });
