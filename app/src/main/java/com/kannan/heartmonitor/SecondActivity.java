@@ -7,8 +7,10 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -24,6 +26,15 @@ import com.kannan.Bean.AccelEntryBean;
 import com.kannan.Bean.PatientBean;
 import com.kannan.database.sqlite.PatientDBHelper;
 
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.InputStreamEntity;
+import org.apache.http.impl.client.BasicResponseHandler;
+import org.apache.http.impl.client.HttpClientBuilder;
+
+import java.io.File;
+import java.io.FileInputStream;
 import java.util.List;
 import java.util.Random;
 
@@ -52,7 +63,44 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
 
     //Database Helper
     PatientDBHelper patientDB;
+    public void uploaddb() throws Exception{
 
+        String url = "https://impact.asu.edu/Appenstance/UploadToServerGPS.php";
+        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), "/Users/vimalKhanna/Desktop/patient.db");
+        try {
+            HttpClient httpclient = HttpClientBuilder.create().build();
+
+            HttpPost httppost = new HttpPost(url);
+
+            InputStreamEntity reqEntity = new InputStreamEntity(new FileInputStream(file), -1);
+            reqEntity.setContentType("binary/octet-stream");
+            reqEntity.setChunked(true); // Send in multiple parts if needed
+            httppost.setEntity(reqEntity);
+            ResponseHandler<String> responseHandler=new BasicResponseHandler();
+            String responseBody = httpclient.execute(httppost, responseHandler);
+//            JSONObject response=new JSONObject(responseBody);
+//            HttpResponse response = httpclient.execute(httppost);
+            Context context = getApplicationContext();
+            Toast toast = Toast.makeText(context,responseBody, Toast.LENGTH_LONG);
+            //Do something with response...
+
+            } catch (Exception e) {
+            Log.e("Error caught", null);
+
+
+            }
+//        try {
+//            //                URL url = new URL("https://impact.asu.edu/Appenstance/UploadToServerGPS.php");
+//            String url = "";
+//            HttpGet request = new HttpGet(url);
+//            ResponseHandler<String> responseHandler = new BasicResponseHandler();
+//            HttpClient httpClient = HttpClientBuilder.create().build();
+//            ///Users/kannanravindran/Desktop
+//        }
+//        catch (Exception e){
+//            Log.e("Error caught", null);
+//        }
+        }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -82,6 +130,7 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
         viewport.setScrollable(true);
         Button run = (Button) findViewById(R.id.button);
         Button stop = (Button) findViewById(R.id.button2);
+        Button uploaddb = (Button) findViewById(R.id.button3);
 
         //Get patient information from previous activity
         try {
@@ -116,6 +165,18 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
 
 
         /* CREATE BUTTON LISTENERS*/
+        //upload
+        uploaddb.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                try {
+                    uploaddb();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
         //run
         run.setOnClickListener(new View.OnClickListener() {
             @Override

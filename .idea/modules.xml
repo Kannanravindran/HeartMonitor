@@ -3,8 +3,10 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/GraphView-4.0.1/GraphView-4.0.1.iml" filepath="$PROJECT_DIR$/GraphView-4.0.1/GraphView-4.0.1.iml" />
-      <module fileurl="file://$PROJECT_DIR$/HeartMonitorV2.iml" filepath="$PROJECT_DIR$/HeartMonitorV2.iml" />
+      <module fileurl="file://$PROJECT_DIR$/HeartMonitor.iml" filepath="$PROJECT_DIR$/HeartMonitor.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/httpclient-4.5.2/httpclient-4.5.2.iml" filepath="$PROJECT_DIR$/httpclient-4.5.2/httpclient-4.5.2.iml" />
+      <module fileurl="file://$PROJECT_DIR$/httpcore-4.4.4/httpcore-4.4.4.iml" filepath="$PROJECT_DIR$/httpcore-4.4.4/httpcore-4.4.4.iml" />
     </modules>
   </component>
 </project>
