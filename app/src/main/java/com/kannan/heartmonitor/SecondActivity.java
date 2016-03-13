@@ -7,8 +7,10 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -24,6 +26,18 @@ import com.kannan.Bean.AccelEntryBean;
 import com.kannan.Bean.PatientBean;
 import com.kannan.database.sqlite.PatientDBHelper;
 
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.InputStreamEntity;
+import org.apache.http.impl.client.BasicResponseHandler;
+import org.apache.http.impl.client.HttpClientBuilder;
+
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.List;
 import java.util.Random;
 
@@ -52,7 +66,70 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
 
     //Database Helper
     PatientDBHelper patientDB;
+    public void uploaddb() throws Exception{
+        File database = getApplicationContext().getDatabasePath("patient.db");
+        FileInputStream fileInputStream = new FileInputStream(database);
+        URL url = new URL("https://impact.asu.edu/Appenstance/UploadToServerGPS.php");
+        int maxBufferSize = 1024 * 1024;
 
+        // Open a HTTP  connection to  the URL
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setDoInput(true); // Allow Inputs
+        conn.setDoOutput(true); // Allow Outputs
+        conn.setUseCaches(false); // Don't use a Cached Copy
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Connection", "Keep-Alive");
+        conn.setRequestProperty("ENCTYPE", "multipart/form-data");
+        conn.setRequestProperty("Content-Type", "multipart/form-data;boundary=&&");
+        conn.setRequestProperty("uploaded_file", "patient.db");
+
+        DataOutputStream dos = new DataOutputStream(conn.getOutputStream());
+
+        dos.writeBytes("\r\n");
+        dos.writeBytes("Content-Disposition: form-data; name='uploaded_file';filename='patient.db'" +"\r\n");
+        dos.writeBytes("\r\n");
+        int bytesAvailable = fileInputStream.available();
+
+        int bufferSize = Math.min(bytesAvailable, maxBufferSize);
+        byte[] buffer = new byte[bufferSize];
+
+        // read file and write it into form...
+        int bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+
+        while (bytesRead > 0) {
+
+            dos.write(buffer, 0, bufferSize);
+            bytesAvailable = fileInputStream.available();
+            bufferSize = Math.min(bytesAvailable, maxBufferSize);
+            bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+
+        }
+
+        // send multipart form data necesssary after file data...
+        dos.writeBytes("\r\n\r\n");
+        dos.writeBytes("--&&--\r\n");
+
+        // Responses from the server (code and message)
+        int serverResponseCode = conn.getResponseCode();
+        String serverResponseMessage = conn.getResponseMessage();
+
+        Log.i("uploadFile", "HTTP Response is : "
+                + serverResponseMessage + ": " + serverResponseCode);
+
+        if(serverResponseCode == 200){
+            Context context = getApplicationContext();
+            CharSequence text = "Upload Successful";
+            int duration = Toast.LENGTH_SHORT;
+            Toast toast = Toast.makeText(context, text, duration);
+            toast.show();
+
+        }
+
+        //close the streams //
+        fileInputStream.close();
+        dos.flush();
+        dos.close();
+        }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -82,6 +159,7 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
         viewport.setScrollable(true);
         Button run = (Button) findViewById(R.id.button);
         Button stop = (Button) findViewById(R.id.button2);
+        Button uploaddb = (Button) findViewById(R.id.button3);
 
         //Get patient information from previous activity
         try {
@@ -116,6 +194,19 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
 
 
         /* CREATE BUTTON LISTENERS*/
+        //upload
+        uploaddb.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                try {
+//                    uploaddb();
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
         //run
         run.setOnClickListener(new View.OnClickListener() {
             @Override
