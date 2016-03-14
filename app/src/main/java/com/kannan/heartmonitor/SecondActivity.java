@@ -3,6 +3,8 @@ package com.kannan.heartmonitor;
 import android.content.Context;
 import android.content.Intent;
 import android.database.sqlite.SQLiteException;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -46,10 +48,11 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
     private final String PATIENT_BUNDLE_INFO = "PATIENT_INFO";
 
     private static final Random RANDOM = new Random();
-    private LineGraphSeries<DataPoint> series;
+    private LineGraphSeries<DataPoint> seriesX;
+    private LineGraphSeries<DataPoint> seriesY;
+    private LineGraphSeries<DataPoint> seriesZ;
     private int lastX = 0;
     public boolean running=true;
-    public int y=0;
 
     private PatientBean patientInfo;
 
@@ -145,8 +148,17 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
         txtVw_Sex = (TextView) findViewById(R.id.txtVw_PatientSex);
 
         // data
-        series = new LineGraphSeries<DataPoint>();
-        graph.addSeries(series);
+        seriesX = new LineGraphSeries<DataPoint>();
+        seriesY = new LineGraphSeries<DataPoint>();
+        seriesZ = new LineGraphSeries<DataPoint>();
+
+        seriesX.setColor(Color.RED);
+        seriesY.setColor(Color.GREEN);
+        seriesZ.setColor(Color.BLUE);
+
+        graph.addSeries(seriesX);
+        graph.addSeries(seriesY);
+        graph.addSeries(seriesZ);
 
         // customize a little bit viewport
         Viewport viewport = graph.getViewport();
@@ -256,51 +268,55 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
         // add all the entries for previous records
         if(history != null) {
             for(AccelEntryBean entry : history) {
+                int nX = (int) ((entry.getX() * 10.0) + 50); // scale the x-value so it's more visible on graph
                 int nY = (int) ((entry.getY() * 10.0) + 50); // scale the y-value so it's more visible on graph
-                addEntry(nY);
+                int nZ = (int) ((entry.getZ() * 10.0) - 50); // scale the z-value so it's more visible on graph
+                addEntry(nX, nY, nZ);
             }
         }
     }
 
-        @Override
-        public void onResume () {
-            super.onResume();
-            sensorManager.registerListener(this, sensorAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+    @Override
+         public void onResume () {
+        super.onResume();
+        sensorManager.registerListener(this, sensorAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
 
-            new Thread(new Runnable() { //thread for live graph
+        new Thread(new Runnable() { //thread for live graph
 
-                @Override
-                public void run() {
-                    while(true) {
-                        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                while(true) {
+                    runOnUiThread(new Runnable() {
 
-                            @Override
-                            public void run() {
-                                if(running) {
-                                    isReadyForAnotherRead = true; // flag for the sensorChanged to record new value
-                                }
+                        @Override
+                        public void run() {
+                            if(running) {
+                                isReadyForAnotherRead = true; // flag for the sensorChanged to record new value
                             }
-                        });
-
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
                         }
+                    });
+
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
                 }
-            }).start();
-        }
+            }
+        }).start();
+    }
 
     // add random data to graph
-    private void addEntry(int y) {
+    private void addEntry(int x, int y, int z) {
         // here, we choose to display max 10 points on the viewport and we scroll to end
 
         if (running==true) {
 
                 //series.appendData(new DataPoint(lastX++, RANDOM.nextDouble() * 10d), true, 10);
                 //series.appendData(new DataPoint(lastX++, RANDOM.nextDouble() * 100d), true, 30);
-                series.appendData(new DataPoint(lastX++,y ), true,30);
+                seriesX.appendData(new DataPoint(lastX++,x ), true,30);
+                seriesY.appendData(new DataPoint(lastX++,y ), true,30);
+                seriesZ.appendData(new DataPoint(lastX++,z ), true,30);
         }
     }
 
@@ -320,8 +336,10 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
 
         // a second has happsed, so read & record accelerometer data
         if(isReadyForAnotherRead) {
+            int nX = (int) ((x * 10.0) + 50); // scale the y-value so it's more visible on graph
             int nY = (int) ((y * 10.0) + 50); // scale the y-value so it's more visible on graph
-            addEntry(nY); // add to graph
+            int nZ = (int) ((z * 10.0) - 50); // scale the y-value so it's more visible on graph
+            addEntry(nX, nY, nZ); // add to graph
             isReadyForAnotherRead = false; // wait for timer to set back to true so that we read in one second
             AccelEntryBean newAccelRead = AccelEntryBean.getNewAccelEntry(x, y, z); // add new reading to DB
             patientDB.addEntry(newAccelRead);
