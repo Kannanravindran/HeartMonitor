@@ -159,16 +159,18 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
             }
         });
         //download
-        downloadButton.setOnClickListener(new View.OnClickListener(){
-            @Override
-            public void onClick(View v) {
-                try{
-                    Download down = new Download();
-                }catch (Exception e){
-                    e.printStackTrace();
-                }
-            }
-        });
+//        downloadButton.setOnClickListener(new View.OnClickListener(){
+//            @Override
+//            public void onClick(View v) {
+//                try{
+////                    Download down = new Download();
+//                    final Download down = new Download(this);
+//                    down.execute("https://impact.asu.edu/Appenstance);
+//                }catch (Exception e){
+//                    e.printStackTrace();
+//                }
+//            }
+//        });
 
         //run
         run.setOnClickListener(new View.OnClickListener() {
