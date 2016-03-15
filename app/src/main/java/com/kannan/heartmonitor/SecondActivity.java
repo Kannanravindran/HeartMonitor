@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.database.sqlite.SQLiteException;
 import android.graphics.Color;
-import android.graphics.Paint;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -15,7 +14,6 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -31,7 +29,6 @@ import com.kannan.database.sqlite.PatientDBHelper;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -112,6 +109,7 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
         Button run = (Button) findViewById(R.id.button);
         Button stop = (Button) findViewById(R.id.button2);
         Button uploadButton = (Button) findViewById(R.id.button3);
+        Button downloadButton = (Button) findViewById(R.id.button4);
 
         //Get patient information from previous activity
         try {
@@ -156,6 +154,17 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
                     up.execute(database);
 
                 } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        //download
+        downloadButton.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View v) {
+                try{
+                    Download down = new Download();
+                }catch (Exception e){
                     e.printStackTrace();
                 }
             }
@@ -354,14 +363,6 @@ class UploadtoServer extends AsyncTask<File,Void,Void>
             {
                 dialog.dismiss();
                 Log.e("uploadFile", "Source File not exist :");
-//                runOnUiThread(new Runnable()
-//                {
-//                    public void run()
-//                    {
-//                        messageText.setText("Source File not exist :");
-//                    }
-//                });
-//            return 0;
             }
             else
             {
@@ -378,9 +379,7 @@ class UploadtoServer extends AsyncTask<File,Void,Void>
                 conn.setUseCaches(false); // Don't use a Cached Copy
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Connection", "Keep-Alive");
-               // conn.setRequestProperty("ENCTYPE", "multipart/form-data");
                 conn.setRequestProperty("Content-Type", "multipart/form-data;boundary=" + boundary);
-                //conn.setRequestProperty("uploaded_file", "group22.db");
 
 
                 dos = new DataOutputStream(conn.getOutputStream());
@@ -416,15 +415,6 @@ class UploadtoServer extends AsyncTask<File,Void,Void>
 
                 Log.i("uploadFile", "HTTP Response is : "
                         + serverResponseMessage + ": " + serverResponseCode);
-
-//                if(serverResponseCode == 200){
-//
-//                            String msg = "File Upload Completed.\n";
-//
-//                            messageText.setText(msg);
-//                            Toast.makeText(UploadtoServer.this, msg, Toast.LENGTH_SHORT).show();
-//                }
-
                 //close the streams //
                 fileInputStream.close();
                 dos.flush();
@@ -454,6 +444,44 @@ class UploadtoServer extends AsyncTask<File,Void,Void>
     protected Void doInBackground(File... DB)
     {
         uploadFile(DB[0]);
+        return null;
+    }
+}
+
+class Download extends AsyncTask<File, Void, Void> {
+
+    @Override
+    protected Void doInBackground(File... params) {
+            TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
+                public X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+
+                @Override
+                public void checkClientTrusted(X509Certificate[] arg0, String arg1) throws CertificateException {
+                    // Not implemented
+                }
+
+                @Override
+                public void checkServerTrusted(X509Certificate[] arg0, String arg1) throws CertificateException {
+                    // Not implemented
+                }
+            }};
+
+            try {
+                SSLContext sc = SSLContext.getInstance("TLS");
+
+                sc.init(null, trustAllCerts, new java.security.SecureRandom());
+
+                HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+            } catch (KeyManagementException e) {
+                e.printStackTrace();
+            } catch (NoSuchAlgorithmException e) {
+                e.printStackTrace();
+            }
+        String downloadserver = "https://impact.asu.edu/Appenstance/group22.db";
+
+
         return null;
     }
 }
