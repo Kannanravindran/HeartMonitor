@@ -1,5 +1,6 @@
 package com.kannan.heartmonitor;
 
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.database.sqlite.SQLiteException;
@@ -9,14 +10,13 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.os.Environment;
-import android.support.v7.app.AppCompatActivity;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
-import android.widget.ArrayAdapter;
+import android.view.View.OnClickListener;
 import android.widget.Button;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,20 +28,24 @@ import com.kannan.Bean.AccelEntryBean;
 import com.kannan.Bean.PatientBean;
 import com.kannan.database.sqlite.PatientDBHelper;
 
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.ResponseHandler;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.InputStreamEntity;
-import org.apache.http.impl.client.BasicResponseHandler;
-import org.apache.http.impl.client.HttpClientBuilder;
-
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.Random;
+
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 public class SecondActivity extends AppCompatActivity implements SensorEventListener{
 
@@ -69,70 +73,6 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
 
     //Database Helper
     PatientDBHelper patientDB;
-    public void uploaddb() throws Exception{
-        File database = getApplicationContext().getDatabasePath("patient.db");
-        FileInputStream fileInputStream = new FileInputStream(database);
-        URL url = new URL("https://impact.asu.edu/Appenstance/UploadToServerGPS.php");
-        int maxBufferSize = 1024 * 1024;
-
-        // Open a HTTP  connection to  the URL
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setDoInput(true); // Allow Inputs
-        conn.setDoOutput(true); // Allow Outputs
-        conn.setUseCaches(false); // Don't use a Cached Copy
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Connection", "Keep-Alive");
-        conn.setRequestProperty("ENCTYPE", "multipart/form-data");
-        conn.setRequestProperty("Content-Type", "multipart/form-data;boundary=&&");
-        conn.setRequestProperty("uploaded_file", "patient.db");
-
-        DataOutputStream dos = new DataOutputStream(conn.getOutputStream());
-
-        dos.writeBytes("\r\n");
-        dos.writeBytes("Content-Disposition: form-data; name='uploaded_file';filename='patient.db'" +"\r\n");
-        dos.writeBytes("\r\n");
-        int bytesAvailable = fileInputStream.available();
-
-        int bufferSize = Math.min(bytesAvailable, maxBufferSize);
-        byte[] buffer = new byte[bufferSize];
-
-        // read file and write it into form...
-        int bytesRead = fileInputStream.read(buffer, 0, bufferSize);
-
-        while (bytesRead > 0) {
-
-            dos.write(buffer, 0, bufferSize);
-            bytesAvailable = fileInputStream.available();
-            bufferSize = Math.min(bytesAvailable, maxBufferSize);
-            bytesRead = fileInputStream.read(buffer, 0, bufferSize);
-
-        }
-
-        // send multipart form data necesssary after file data...
-        dos.writeBytes("\r\n\r\n");
-        dos.writeBytes("--&&--\r\n");
-
-        // Responses from the server (code and message)
-        int serverResponseCode = conn.getResponseCode();
-        String serverResponseMessage = conn.getResponseMessage();
-
-        Log.i("uploadFile", "HTTP Response is : "
-                + serverResponseMessage + ": " + serverResponseCode);
-
-        if(serverResponseCode == 200){
-            Context context = getApplicationContext();
-            CharSequence text = "Upload Successful";
-            int duration = Toast.LENGTH_SHORT;
-            Toast toast = Toast.makeText(context, text, duration);
-            toast.show();
-
-        }
-
-        //close the streams //
-        fileInputStream.close();
-        dos.flush();
-        dos.close();
-        }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -171,7 +111,7 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
         viewport.setScrollable(true);
         Button run = (Button) findViewById(R.id.button);
         Button stop = (Button) findViewById(R.id.button2);
-        Button uploaddb = (Button) findViewById(R.id.button3);
+        Button uploadButton = (Button) findViewById(R.id.button3);
 
         //Get patient information from previous activity
         try {
@@ -207,11 +147,13 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
 
         /* CREATE BUTTON LISTENERS*/
         //upload
-        uploaddb.setOnClickListener(new View.OnClickListener() {
+        uploadButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 try {
-//                    uploaddb();
+                    UploadtoServer up=new UploadtoServer();
+                    File database = getApplicationContext().getDatabasePath("patient.db");
+                    up.execute(database);
 
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -355,5 +297,163 @@ public class SecondActivity extends AppCompatActivity implements SensorEventList
     protected void onPause() {
         super.onPause();
         sensorManager.unregisterListener(this);
+    }
+}
+
+class UploadtoServer extends AsyncTask<File,Void,Void>
+{
+        TextView messageText;
+        Button uploadButton;
+        int serverResponseCode = 0;
+        ProgressDialog dialog = null;
+        String upLoadServerUri = null;
+
+        /**********  File Path *************/
+
+        public int uploadFile(File sourceFileUri)
+        {
+            TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
+                public X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+
+                @Override
+                public void checkClientTrusted(X509Certificate[] arg0, String arg1) throws CertificateException {
+                    // Not implemented
+                }
+
+                @Override
+                public void checkServerTrusted(X509Certificate[] arg0, String arg1) throws CertificateException {
+                    // Not implemented
+                }
+            } };
+
+            try {
+                SSLContext sc = SSLContext.getInstance("TLS");
+
+                sc.init(null, trustAllCerts, new java.security.SecureRandom());
+
+                HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+            } catch (KeyManagementException e) {
+                e.printStackTrace();
+            } catch (NoSuchAlgorithmException e) {
+                e.printStackTrace();
+            }
+            upLoadServerUri = "https://impact.asu.edu/Appenstance/UploadToServerGPS.php";
+            File fileName = sourceFileUri;
+            HttpURLConnection conn = null;
+            DataOutputStream dos = null;
+            String lineEnd = "\r\n";
+            String twoHyphens = "--";
+            String boundary = "*****";
+            int bytesRead, bytesAvailable, bufferSize;
+            byte[] buffer;
+            int maxBufferSize = 1 * 1024 * 1024;
+            File sourceFile = new File(String.valueOf(sourceFileUri));
+            if (!sourceFile.isFile())
+            {
+                dialog.dismiss();
+                Log.e("uploadFile", "Source File not exist :");
+//                runOnUiThread(new Runnable()
+//                {
+//                    public void run()
+//                    {
+//                        messageText.setText("Source File not exist :");
+//                    }
+//                });
+//            return 0;
+            }
+            else
+            {
+            try
+            {
+                // open a URL connection to the Servlet
+
+                FileInputStream fileInputStream = new FileInputStream(sourceFile);
+                URL url = new URL(upLoadServerUri);
+                // Open a HTTP  connection to  the URL
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setDoInput(true); // Allow Inputs
+                conn.setDoOutput(true); // Allow Outputs
+                conn.setUseCaches(false); // Don't use a Cached Copy
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Connection", "Keep-Alive");
+               // conn.setRequestProperty("ENCTYPE", "multipart/form-data");
+                conn.setRequestProperty("Content-Type", "multipart/form-data;boundary=" + boundary);
+                //conn.setRequestProperty("uploaded_file", "group22.db");
+
+
+                dos = new DataOutputStream(conn.getOutputStream());
+
+                dos.writeBytes(twoHyphens + boundary + lineEnd);
+                dos.writeBytes("Content-Disposition: form-data; name=\"uploaded_file\"; filename=\"group22.db\"" + lineEnd);
+                dos.writeBytes(lineEnd);
+                // create a buffer of  maximum size
+                bytesAvailable = fileInputStream.available();
+
+                bufferSize = Math.min(bytesAvailable, maxBufferSize);
+                buffer = new byte[bufferSize];
+
+                // read file and write it into form...
+                bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+
+                while (bytesRead > 0) {
+
+                    dos.write(buffer, 0, bufferSize);
+                    bytesAvailable = fileInputStream.available();
+                    bufferSize = Math.min(bytesAvailable, maxBufferSize);
+                    bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+
+                }
+
+                // send multipart form data necesssary after file data...
+                dos.writeBytes(lineEnd);
+                dos.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
+
+                // Responses from the server (code and message)
+                serverResponseCode = conn.getResponseCode();
+                String serverResponseMessage = conn.getResponseMessage();
+
+                Log.i("uploadFile", "HTTP Response is : "
+                        + serverResponseMessage + ": " + serverResponseCode);
+
+//                if(serverResponseCode == 200){
+//
+//                            String msg = "File Upload Completed.\n";
+//
+//                            messageText.setText(msg);
+//                            Toast.makeText(UploadtoServer.this, msg, Toast.LENGTH_SHORT).show();
+//                }
+
+                //close the streams //
+                fileInputStream.close();
+                dos.flush();
+                dos.close();
+
+            } catch (MalformedURLException ex)
+            {
+
+               // dialog.dismiss();
+                ex.printStackTrace();
+
+                Log.e("Upload file to server", "error: " + ex.getMessage(), ex);
+            } catch (Exception e) {
+
+                //dialog.dismiss();
+                e.printStackTrace();
+                Log.e("Upload file to server Exception", "Exception : " + e.getMessage(), e);
+            }
+           // dialog.dismiss();
+
+
+        } // End else block
+        return serverResponseCode;
+    }
+
+    @Override
+    protected Void doInBackground(File... DB)
+    {
+        uploadFile(DB[0]);
+        return null;
     }
 }
